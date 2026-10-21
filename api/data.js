@@ -2,35 +2,19 @@
 /**
  * ММ — Маяк-мониторинг: данные для страницы (только чтение).
  *
- * Берёт готовый снимок site-data.json из приватного репозитория MAYAK-monitoring (ветка site-data) токеном
- * MM_GITHUB_READ_TOKEN (fine-grained, только Contents: Read-only) и переименовывает поля под разметку страницы.
+ * Готовый снимок site-data.json ММ (чтение и ключ сайта — api/_mm.js) переименовывается под разметку страницы.
  * Финансовых расчётов здесь нет: доход, капитал, APR, сводки, доли и доход по дням посчитаны ММ.
  * Сайт должен быть закрыт Vercel Deployment Protection, как старый Маяк.
  */
-const OWNER = 'MAYAK-monitoring', REPO = 'MAYAK-monitoring', FILE = 'site-data.json', BRANCH = 'site-data';
-const MAX_BYTES = 5_000_000;
+const { serve } = require('./_mm.js');
 const iso = t => (t == null ? null : new Date(t * 1000).toISOString());
 const VERSION = p => /Slipstream/.test(p) ? 'CL' : /Meteora/.test(p) ? 'DLMM' : /Orca/.test(p) ? 'CLMM' : 'V3';
 const HISTORY = {
   'from-open': ['с открытия', 'Учёт с момента открытия позиции в блокчейне: всё заработанное, включая собранное до обнаружения.'],
-  'from-start': ['с начала учёта', 'Позиция открыта до T0 (20.10.2026): учёт со старта ММ, заработанное раньше — в «Не собрано».'],
+  'from-start': ['с начала учёта', 'Позиция открыта до T0 (21.10.2026, 08:29 МСК): учёт со старта ММ, заработанное раньше — в «Не собрано».'],
   incomplete: ['⚠ история неполная', 'Позиция найдена позже старта ММ или до обнаружения были операции, которые ещё не разобраны.'],
   pending: ['момент открытия уточняется', 'ММ ищет момент открытия позиции в блокчейне; учёт пока с первого снимка.'],
 };
-
-async function snapshot(token) {
-  const r = await fetch('https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' + FILE + '?ref=' + BRANCH, {
-    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'MM-site-readonly' },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!r.ok) throw Error('чтение данных ММ: HTTP ' + r.status);
-  const obj = await r.json();
-  const buf = Buffer.from(String(obj.content || '').replace(/\s/g, ''), 'base64');
-  if (!buf.length || buf.length > MAX_BYTES) throw Error('снимок ММ пустой или слишком большой');
-  const text = buf.toString('utf8');
-  if (/0x[0-9a-fA-F]{40}|"[1-9A-HJ-NP-Za-km-z]{43,44}"/.test(text)) throw Error('в снимке адрес — не показываю');
-  return JSON.parse(text);
-}
 
 function position(p) {
   const h = HISTORY[p.history] || HISTORY.pending, a = p.apr || {};
@@ -55,7 +39,7 @@ function position(p) {
 
 const GAPS = [
   { status: 'NONE', protocol: 'Fragmetric, выводы в ожидании', chain: 'Solana', note: 'В ММ появятся позже.' },
-  { status: 'PARTIAL', protocol: 'История диапазона, журнал операций, BTC', chain: '—', note: 'В ММ появятся позже.' },
+  { status: 'PARTIAL', protocol: 'Журнал операций, BTC', chain: '—', note: 'В ММ появятся позже.' },
 ];
 
 function bucket(v, key, rows) {
@@ -83,7 +67,7 @@ function bucket(v, key, rows) {
     strategyAllocation: { actualUsd: g.byBucket || {}, targets: { quality: 40, medium: 20, high: 40 }, note: 'По утверждённым правилам стратегии' },
     // график «Средний доход в день» — готовый ряд ММ (история до перехода + дни ММ) и его среднее
     dailyIncome: g.dailyDisplay ? { days: g.dailyDisplay.days, averageUsd: g.dailyDisplay.averageUsd } : { days: (g.dailyIncome || []).slice().reverse(), averageUsd: null },
-    coverage: GAPS, sourceErrors: ((v.health || {}).errors || []).map(text => ({ source: 'ММ', text })), warnings: [],
+    coverage: GAPS, sourceErrors: ((v.health || {}).errors || []).filter(t => !/поиск токенов Blockscout/.test(t)).map(text => ({ source: 'ММ', text })), warnings: [],
   };
 }
 
@@ -97,19 +81,5 @@ function adapt(v) {
   };
 }
 
-module.exports = async function (req, res) {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
-  if (req.method !== 'GET') return res.status(405).send('{"error":"METHOD_NOT_ALLOWED"}');
-  // доступ к цифрам — только по ключу сайта (MM_SITE_KEY в окружении Vercel); без ключа в окружении сайт закрыт
-  const key = process.env.MM_SITE_KEY;
-  if (!key) return res.status(503).send(JSON.stringify({ error: 'не задан MM_SITE_KEY — данные закрыты' }));
-  const given = Buffer.from(String(req.headers['x-mm-key'] || '')), want = Buffer.from(key);
-  if (given.length !== want.length || !require('node:crypto').timingSafeEqual(given, want)) return res.status(401).send(JSON.stringify({ error: 'нужен ключ' }));
-  const token = process.env.MM_GITHUB_READ_TOKEN;
-  if (!token) return res.status(500).send(JSON.stringify({ error: 'не задан MM_GITHUB_READ_TOKEN' }));
-  try { return res.status(200).send(JSON.stringify(adapt(await snapshot(token)))); }
-  catch (e) { return res.status(502).send(JSON.stringify({ error: String(e && e.message || e).slice(0, 200) })); }
-};
+module.exports = serve('site-data.json', adapt);
 module.exports.adapt = adapt;
