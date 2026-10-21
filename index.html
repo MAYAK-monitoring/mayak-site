@@ -1289,7 +1289,7 @@ function rhSeries(p){
  if(!v)return {why:'шкала для позиции ещё не рассчитана'};
  if(v.status!=='OK')return {why:{ORIENTATION_UNVERIFIED:'котировка пула не сопоставлена с позицией — график не показывается',PRICE_MISMATCH:'цена источника расходится с блокчейном больше чем на 3% — график скрыт',POOL_PENDING:'история цены пула ещё загружается',RANGE_UNAVAILABLE:'у позиции нет границ',NETWORK_NOT_SUPPORTED:'сеть пока не поддерживается'}[v.status]||v.status};
  const inv=!!(r&&p.range&&r.direction!==p.range.direction), f=x=>inv?1/x:x;
- const chartPts=v.chart?v.chart.c.map(c=>({t:v.chart.t0+c[0]*v.chart.step,c:f(c[1]),l:inv?1/c[3]:c[2],h:inv?1/c[2]:c[3]})):[];
+ const ch=v.chart&&d.charts&&d.charts[v.chart], chartPts=ch?ch.c.map((x,i)=>x==null?null:{t:ch.t0+i*ch.step,c:f(x),l:f(x),h:f(x)}).filter(Boolean):[];
  const w=v.week&&!v.week.insufficient?v.week:null;
  const m=w?{p02:f(inv?w.whiskers[1]:w.whiskers[0]),p98:f(inv?w.whiskers[0]:w.whiskers[1]),p10:f(inv?w.capsule[1]:w.capsule[0]),p90:f(inv?w.capsule[0]:w.capsule[1]),coverage:{tradedPct:w.tradedPct,low:w.tradedPct<70}}:null;
  return {chartPts,pts:chartPts,chartSlot:14400,segs:r?[{from:v.since||0,to:null,lower:r.lower,upper:r.upper}]:[],m,w,efficiency:v.efficiency,inv,since:v.since,lastCandleAt:v.lastCandleAt,touches:w&&(inv?{lower:w.touches.upper,upper:w.touches.lower}:w.touches)};
