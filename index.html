@@ -411,7 +411,7 @@ table.pos .pname{overflow-wrap:anywhere}
 .daily-sparkline svg{display:block;width:100%;height:96px}
 .daily-sparkline .daily-spark-goal{stroke:#b99a70;stroke-width:1;stroke-dasharray:3 2;opacity:.88;vector-effect:non-scaling-stroke}.daily-sparkline .daily-spark-zero{stroke:#b99a70;stroke-width:.5;opacity:.35;vector-effect:non-scaling-stroke}.daily-sparkline .daily-spark-tick{stroke:#b99a70;stroke-width:1;opacity:.8;vector-effect:non-scaling-stroke}.daily-sparkline .daily-spark-overflow{fill:none;stroke:#a2e9c6;stroke-width:1.1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 
-.daily-sparkline .daily-spark-path{fill:none;stroke:#80d1ae;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.daily-sparkline .daily-spark-fill{fill:#80d1ae;opacity:.16;stroke:none}.daily-spark-path{fill:none;stroke:#80d1ae;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .daily-sparkline .daily-spark-dot{fill:#a2e9c6;stroke:#223127;stroke-width:.8;vector-effect:non-scaling-stroke}
 .daily-sparkline .daily-spark-date{font-size:7px;fill:#d7b88b;font-variant-numeric:tabular-nums;letter-spacing:0}
 @media(max-width:540px){.daily-income>summary{column-gap:4px}.daily-income-label{font-size:10px}.daily-income summary strong{font-size:20px}.daily-income>summary>.daily-sparkline{max-width:145px}}
@@ -997,71 +997,31 @@ function monitoringPanel(b){
 }
 // Moscow daily income analytics begins 13 October 2026. Keep earlier ledger records
 // for reconciliation, but never display or average them in MAYAK.
-const DAILY_INCOME_START='2026-10-13';
 const DAILY_INCOME_GOAL_USD=100;
-function dailyIncomeSpark(days,nowMs=Date.now()){
- const today=new Date(nowMs+3*3600e3).toISOString().slice(0,10);
- const DAY=86400_000;
- const windowStart=new Date(Date.parse(today+'T00:00:00Z')-10*DAY).toISOString().slice(0,10);
- const first=windowStart>DAILY_INCOME_START?windowStart:DAILY_INCOME_START;
- const seen=(days||[]).filter(r=>r.closed&&r.date>=first&&r.date<today&&fin(r.usd))
-  .sort((a,b)=>a.date.localeCompare(b.date)).slice(-10);
- // Exactly ten unlabeled horizontal ticks (10..100 USD).
- // The goal is fixed at $100: no auto-rescaling even if earnings exceed it.
- // Each $10 = 7 SVG pixels; the $90 point lies one full tick below $100.
- const plotTop=9,plotBottom=79,plotHeight=plotBottom-plotTop,xStart=20,xEnd=165;
- const y=v=>plotBottom-Math.max(0,Math.min(DAILY_INCOME_GOAL_USD,v))/DAILY_INCOME_GOAL_USD*plotHeight;
- const ticks=Array.from({length:10},(_,i)=>{
-  const at=y((i+1)*10).toFixed(1);
-  return '<line class="daily-spark-tick" x1="12" x2="20" y1="'+at+'" y2="'+at+'"/>';
- }).join('');
- const firstMs=Date.parse(first+'T00:00:00Z');
- const lastMs=Date.parse(new Date(Date.parse(today+'T00:00:00Z')-DAY).toISOString().slice(0,10)+'T00:00:00Z');
- const span=Math.max(DAY,lastMs-firstMs);
- const x=r=>xStart+(Date.parse(r.date+'T00:00:00Z')-firstMs)/span*(xEnd-xStart);
- // Missing days break the trend; never interpolate missing observation dates.
- const sections=[];let segment=[],previous=null;
- for(const r of seen){
-  if(previous&&Date.parse(r.date+'T00:00:00Z')-Date.parse(previous.date+'T00:00:00Z')>DAY){
-   if(segment.length>1)sections.push(segment.join(' '));segment=[];
-  }
-  segment.push(x(r).toFixed(1)+','+y(r.usd).toFixed(1));previous=r;
- }
- if(segment.length>1)sections.push(segment.join(' '));
- const line=sections.map(points=>'<polyline class="daily-spark-path" points="'+points+'"/>').join('');
- const marks=seen.map(r=>{
-  const xx=x(r).toFixed(1),yy=y(r.usd).toFixed(1);
-  // Days above $100 have an arrow; tooltip preserves their actual value.
-  const overflow=r.usd>DAILY_INCOME_GOAL_USD?
-   '<path class="daily-spark-overflow" d="M '+(x(r)-3).toFixed(1)+' 7 L '+xx+' 2 L '+(x(r)+3).toFixed(1)+' 7"/>':'';
-  return '<circle class="daily-spark-dot" cx="'+xx+'" cy="'+yy+'" r="2.1"><title>'+
-   esc(r.date.slice(8)+'.'+r.date.slice(5,7)+': '+money(r.usd,0))+
-   (r.usd>DAILY_INCOME_GOAL_USD?' · выше цели 100 $':'')+'</title></circle>'+overflow+
-   '<text class="daily-spark-date" text-anchor="middle" x="'+xx+'" y="92">'+esc(r.date.slice(8))+'</text>';
- }).join('');
- const label=seen.length?'Доход по дням с 13.10; шкала 0–100 долларов, десять делений без подписей. Стрелки показывают превышение цели.':
-  'С 13.10 нет завершённых дней; цель — 100 долларов в день.';
- return '<span class="daily-sparkline" role="img" aria-label="'+esc(label)+'"><svg viewBox="0 0 168 96" preserveAspectRatio="none" aria-hidden="true">'+
+const dmy=d=>d.slice(8)+'.'+d.slice(5,7);
+function dailyIncomeSpark(days){
+ const seen=(days||[]).filter(r=>fin(r.usd)).slice(-10);
+ const top=Math.max(150,Math.ceil(Math.max(0,...seen.map(r=>r.usd))/50)*50);
+ const plotTop=6,plotBottom=79,plotHeight=plotBottom-plotTop,xStart=20,xEnd=165;
+ const y=v=>plotBottom-Math.max(0,Math.min(top,v))/top*plotHeight;
+ const step=top<=150?10:50, ticks=Array.from({length:Math.floor(top/step)},(_,i)=>{const at=y((i+1)*step).toFixed(1);return '<line class="daily-spark-tick" x1="14" x2="20" y1="'+at+'" y2="'+at+'"/>';}).join('');
+ const x=i=>seen.length<2?(xStart+xEnd)/2:xStart+i/(seen.length-1)*(xEnd-xStart);
+ const pts=seen.map((r,i)=>x(i).toFixed(1)+','+y(r.usd).toFixed(1));
+ const line=pts.length>1?'<polygon class="daily-spark-fill" points="'+x(0).toFixed(1)+','+plotBottom+' '+pts.join(' ')+' '+x(seen.length-1).toFixed(1)+','+plotBottom+'"/><polyline class="daily-spark-path" points="'+pts.join(' ')+'"/>':'';
+ const marks=seen.map((r,i)=>'<circle class="daily-spark-dot" cx="'+x(i).toFixed(1)+'" cy="'+y(r.usd).toFixed(1)+'" r="2.1"><title>'+esc(dmy(r.date)+' — '+money(r.usd,0))+'</title></circle>'+
+  '<text class="daily-spark-date" text-anchor="middle" x="'+x(i).toFixed(1)+'" y="92">'+esc(r.date.slice(8))+'</text>').join('');
+ const goal=y(DAILY_INCOME_GOAL_USD).toFixed(1);
+ return '<span class="daily-sparkline" role="img" aria-label="Доход по дням"><svg viewBox="0 0 168 96" preserveAspectRatio="none" aria-hidden="true">'+
   '<line class="daily-spark-zero" x1="20" x2="165" y1="'+plotBottom+'" y2="'+plotBottom+'"/>'+ticks+
-  '<line class="daily-spark-goal" x1="20" x2="165" y1="'+plotTop+'" y2="'+plotTop+'"/>'+line+marks+'</svg></span>';
+  '<line class="daily-spark-goal" x1="20" x2="165" y1="'+goal+'" y2="'+goal+'"/>'+line+marks+'</svg></span>';
 }
-function dailyIncomeCard(b,nowMs=Date.now()){
- const d=b?.dailyIncome;
- const today=new Date(nowMs+3*3600e3).toISOString().slice(0,10);
- // Calculate the mean from the dated entries themselves so stale pre-13.10
- // server summaries cannot leak into a freshly deployed HTML version.
- const rows=(d?.days||[]).filter(r=>r.date>=DAILY_INCOME_START).slice(0,10);
- const observed=rows.filter(r=>r.date<today&&r.closed&&fin(r.usd));
- const average=observed.length?observed.reduce((sum,r)=>sum+r.usd,0)/observed.length:null;
- const daysCount=observed.length;
- const dateLabel=t=>t.split('-').reverse().join('.');
- const shortNote='Среднее — за завершённые наблюдаемые дни с 13.10; сегодня не учитывается. Неполная история отмечена отдельно. Комиссии и награды в USD до 00:00 МСК; газ, IL и переоценка LP исключены.';
- return '<details class="daily-income"><summary><span class="daily-income-label"><span>Средний</span><span>доход в день</span></span>'+dailyIncomeSpark(rows,nowMs)+
-  '<strong>'+money(average,0)+' <span aria-hidden="true">⌄</span></strong></summary>'+
- '<div class="daily-history"><h3>Доход по дням · история наблюдений</h3><p>'+esc(shortNote)+'</p>'+
- '<div class="tbl-scroll"><table class="mini"><thead><tr><th>День, МСК</th><th>Доход, $</th><th>Наблюдение</th></tr></thead><tbody>'+
- (rows.length?rows.map(r=>'<tr><td>'+dateLabel(r.date)+'</td><td><b>'+money(r.usd,0)+'</b></td><td>'+(!r.closed?'Сегодня · не входит в среднее':r.status==='COMPLETE'?'Полные сутки':'Частичная история')+(r.estimated?' · оценка':'')+'</td></tr>').join(''):'<tr><td colspan="3">История с 13.10 ещё накапливается</td></tr>')+
- '</tbody></table></div><div class="daily-history-foot">Учтено дней: '+daysCount+' · оценочные сутки отмечены в таблице</div></div></details>';
+function dailyIncomeCard(b){
+ const d=b?.dailyIncome, rows=(d?.days||[]).filter(r=>fin(r.usd));
+ return '<details class="daily-income"><summary><span class="daily-income-label"><span>Средний</span><span>доход в день</span></span>'+dailyIncomeSpark(rows)+
+  '<strong>'+money(d?.averageUsd,0)+' <span aria-hidden="true">⌄</span></strong></summary>'+
+ '<div class="daily-history"><h3>Доход по дням</h3><div class="tbl-scroll"><table class="mini"><thead><tr><th>День, МСК</th><th>Доход, $</th></tr></thead><tbody>'+
+ rows.slice().reverse().map(r=>'<tr><td>'+dmy(r.date)+'</td><td><b>'+money(r.usd,0)+'</b></td></tr>').join('')+
+ '</tbody></table></div></div></details>';
 }
 
 // Numeric and textual filtering are executed locally on received read-only API data.

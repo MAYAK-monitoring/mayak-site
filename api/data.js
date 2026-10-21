@@ -81,7 +81,8 @@ function bucket(v, key, rows) {
       .filter(a => a.cls === 'A'),
     capitalBreakdown: { byChain: g.byChain || [], byProtocol: g.byProtocol || [], byCoin: g.byCoin || [] },
     strategyAllocation: { actualUsd: g.byBucket || {}, targets: { quality: 40, medium: 20, high: 40 }, note: 'По утверждённым правилам стратегии' },
-    dailyIncome: { days: (g.dailyIncome || []).map(d => Object.assign({ estimated: false }, d)) },
+    // график «Средний доход в день» — готовый ряд ММ (история до перехода + дни ММ) и его среднее
+    dailyIncome: g.dailyDisplay ? { days: g.dailyDisplay.days, averageUsd: g.dailyDisplay.averageUsd } : { days: (g.dailyIncome || []).slice().reverse(), averageUsd: null },
     coverage: GAPS, sourceErrors: ((v.health || {}).errors || []).map(text => ({ source: 'ММ', text })), warnings: [],
   };
 }
