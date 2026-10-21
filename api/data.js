@@ -98,6 +98,11 @@ module.exports = async function (req, res) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
   if (req.method !== 'GET') return res.status(405).send('{"error":"METHOD_NOT_ALLOWED"}');
+  // доступ к цифрам — только по ключу сайта (MM_SITE_KEY в окружении Vercel); без ключа в окружении сайт закрыт
+  const key = process.env.MM_SITE_KEY;
+  if (!key) return res.status(503).send(JSON.stringify({ error: 'не задан MM_SITE_KEY — данные закрыты' }));
+  const given = Buffer.from(String(req.headers['x-mm-key'] || '')), want = Buffer.from(key);
+  if (given.length !== want.length || !require('node:crypto').timingSafeEqual(given, want)) return res.status(401).send(JSON.stringify({ error: 'нужен ключ' }));
   const token = process.env.MM_GITHUB_READ_TOKEN;
   if (!token) return res.status(500).send(JSON.stringify({ error: 'не задан MM_GITHUB_READ_TOKEN' }));
   try { return res.status(200).send(JSON.stringify(adapt(await snapshot(token)))); }
