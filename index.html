@@ -821,7 +821,7 @@ table.pos .rng-track{margin-left:8%;margin-right:8%}
 </nav>
 <aside class="journal-panel" id="journalPanel" hidden aria-label="Журнал операций">
  <div class="journal-status"><b>Журнал операций</b><span class="badge warn" id="journalSourceStatus">Подключение…</span></div>
- <p>История действий по московским календарным дням. Газ — расход сети; комиссии пула/свопов показываются отдельно, только после расшифровки.</p>
+ <p>Операции с позициями по московским календарным дням: открытия, пополнения, выводы, сборы комиссий, Claim и закрытия. Суммы — в токенах.</p>
  <div class="journal-controls">
   <label>Дата <input type="date" id="journalDate" aria-label="Дата журнала по Москве"></label>
   <label>Портфель <select id="journalPortfolio" aria-label="Фильтр портфеля">
@@ -1815,66 +1815,38 @@ function journalFeeTotals(operations){
 }
 function renderJournal(){
  const el=$('journalBody'),data=journalCache;
- if(!data){el.textContent='Загрузка истории…';return}
- const portfolio=$('journalPortfolio').value;
- const entries=(data.operations||[]).filter(x=>portfolio==='all'||x.portfolio===portfolio);
- const totals=journalFeeTotals(entries);
- const feeCount=totals.observed,priced=totals.priced;
- const warning='<div class="journal-warning">История неполная: отсутствие записей не означает, что действий или затрат не было. Газ показан отдельно от комиссий LP и свопов.</div>';
- const tiles='<div class="journal-kpis"><span>Действий обнаружено: <b>'+entries.length+'</b></span>'+
-  '<span>Комиссий сети: <b>'+feeCount+'</b></span>'+
-  '<span>Предварительно оценено в USD: <b>'+priced+'/'+feeCount+'</b></span>'+
-  '<span>Сверено по квитанции: <b>'+totals.verified+'/'+feeCount+'</b></span></div>';
- const feeGroups=totals.groups.map(g=>'<span><b>'+esc(g.chain)+' · '+esc(g.unit)+': '+esc(g.amount)+'</b>'+
-  ' (сверено '+g.verified+'/'+g.items+')</span>').join(' · ');
- const costs='<div class="journal-fee-day"><b>Газ за выбранный день — обнаруженные расходы</b>'+
-  '<div>'+(feeGroups||'Нет записей с известными суммами')+'</div>'+
-  (totals.priced?'<div> $'+esc(totals.indicativeUsd)+
-    ' · предварительная оценка '+totals.priced+'/'+feeCount+' записей, не полный итог</div>':'')+
-  '<div>Неизвестен размер: '+totals.unknownQuantity+
-  ' · конфликт квитанции: '+totals.conflicts+
-  ' · операций без записи газа: '+entries.filter(x=>!x.networkFees?.length).length+
-  '. Полнота расходов не подтверждена.</div></div>';
- const cards=entries.map(x=>{
-  const legs=(x.tokenMovements||[]).map(l=>
-   (l.direction==='IN'?'Получено: ':l.direction==='OUT'?'Отправлено: ':'Движение: ')+
-   (l.quantity==null?'сумма не подтверждена':esc(l.quantity))+' '+esc(l.unit||'токен')+
-   ' ('+(l.evidence==='ONCHAIN_MATCHED'?'сверено по квитанции':'источник требует сверки')+')'
-  ).join(' · ');
-  const fees=(x.networkFees||[]).map(f=>
-   'Газ: '+(f.quantity==null?'размер неизвестен':esc(f.quantity))+' '+esc(f.unit||'')+
-   (f.indicativeUsd!=null?' · USD, оценка: '+esc(f.indicativeUsd):' · цена USD неизвестна')+
-   ' · '+(f.proof==='ONCHAIN_MATCHED'?'сверено по квитанции':'требует проверки')).join('; ');
-  const link=typeof x.explorer==='string'&&/^https:\/\/[a-z0-9.-]+\/tx\//i.test(x.explorer)?
-   '<a href='+JSON.stringify(x.explorer)+' rel=noopener target=_blank>Транзакция ↗</a>':'';
-  return '<article class=journal-entry><b>'+esc(x.title)+'</b>'+
-   '<div class=meta>'+journalTime(x.time)+' МСК · '+esc(x.portfolio)+' · '+esc(x.chain)+'</div>'+
-   '<div class=legs>'+(legs||'Движения не расшифрованы')+'</div>'+
-   '<div class=fees>'+(fees||'Газ не обнаружен (ноль не подтверждён)')+'</div>'+
-   '<div class=meta>Прочие комиссии: не расшифрованы. '+link+'</div></article>';
- }).join('');
- el.innerHTML=warning+tiles+costs+(cards||'<p>Записей не найдено; полнота истории не подтверждена.</p>');
+ if(!data){el.textContent='Загрузка журнала…';return}
+ const day=$('journalDate').value,portfolio=$('journalPortfolio').value;
+ const mskDay=t=>new Date((t+3*3600)*1000).toISOString().slice(0,10);
+ const entries=(data.operations||[]).filter(x=>mskDay(x.t)===day&&(portfolio==='all'||x.portfolio===portfolio));
+ const qty=a=>a.amount.toLocaleString('ru-RU',{maximumFractionDigits:a.amount>=100?2:a.amount>=1?4:6})+' '+a.symbol;
+ const cards=entries.map(x=>'<article class=journal-entry><b>'+esc(x.title)+'</b>'+
+  '<div class=meta>'+journalTime(x.t*1000)+' МСК · '+esc(x.pair||x.position)+' · '+esc(x.portfolio==='defi1'?'DeFi 1':x.portfolio==='defi2'?'DeFi 2':'')+' · '+esc(x.chain||'')+'</div>'+
+  '<div class=legs>'+(x.amounts&&x.amounts.length?esc(x.amounts.map(qty).join(' · ')):x.amounts===null&&x.type&&x.type.startsWith('sol:')?'Суммы операций Solana пока не разбираются':'—')+'</div>'+
+  (x.note?'<div class=meta>'+esc(x.note)+'</div>':'')+'</article>').join('');
+ const since=data.from?new Date(data.from*1000).toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow'}):'';
+ el.innerHTML='<div class="journal-kpis"><span>Операций за день: <b>'+entries.length+'</b></span><span>Журнал ведётся с '+esc(since)+'</span></div>'+
+  (cards||'<p>За этот день операций с позициями не было.</p>');
 }
 async function loadJournal(){
  if($('journalPanel').hidden)return;
- const day=$('journalDate').value,button=$('journalReload');
- journalCache=null;button.disabled=true;renderJournal();
- try{
-  throw Error('MM_JOURNAL_LATER');
-  if(!result.ok)throw Error('SOURCE_UNAVAILABLE');
-  const d=await result.json();
-  if(d.schema!==1||d.readOnly!==true||!Array.isArray(d.operations))throw Error('BAD_JOURNAL_SCHEMA');
-  journalCache=d;$('journalSourceStatus').textContent='История частичная';renderJournal();
- }catch{
-  $('journalSourceStatus').textContent='Источник недоступен';
-  $('journalBody').textContent='Журнал операций появится в ММ позже.';
- }finally{button.disabled=false}
+ const button=$('journalReload');button.disabled=true;
+ if(!journalCache||Date.now()-(journalCache._at||0)>10*60*1000){
+  renderJournal();
+  try{
+   const r=await fetch('/api/journal',{cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','x-mm-key':mmKey()}});
+   const d=r.ok?await r.json():null;
+   if(!d||d.schema!=='mayak-journal/1')throw Error('BAD');
+   d._at=Date.now();journalCache=d;$('journalSourceStatus').textContent='ММ';
+  }catch(_e){$('journalSourceStatus').textContent='Источник недоступен';$('journalBody').textContent='Не удалось получить журнал; это не ноль операций.';button.disabled=false;return;}
+ }
+ renderJournal();button.disabled=false;
 }
 if($('journalDate')){
 $('journalDate').value=journalDayMoscow();
-$('journalDate').addEventListener('change',loadJournal);
+$('journalDate').addEventListener('change',renderJournal);
 $('journalPortfolio').addEventListener('change',()=>{if(journalCache)renderJournal()});
-$('journalReload').addEventListener('click',loadJournal);
+$('journalReload').addEventListener('click',()=>{if(journalCache)journalCache._at=0;loadJournal();});
 document.querySelectorAll('[data-action=journal]').forEach(x=>x.addEventListener('click',()=>{
  const panel=$('journalPanel');panel.hidden=!panel.hidden;
  x.setAttribute('aria-expanded',panel.hidden?'false':'true');
