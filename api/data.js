@@ -54,7 +54,6 @@ function position(p) {
 }
 
 const GAPS = [
-  { status: 'NONE', protocol: 'Свободные активы на кошельках', chain: 'все сети', note: 'В ММ появятся следующим этапом; капитал портфеля сейчас — только LP.' },
   { status: 'NONE', protocol: 'Fragmetric, выводы в ожидании', chain: 'Solana', note: 'В ММ появятся позже.' },
   { status: 'PARTIAL', protocol: 'История диапазона, журнал операций, BTC', chain: '—', note: 'В ММ появятся позже.' },
 ];
@@ -67,15 +66,19 @@ function bucket(v, key, rows) {
     positions: live.map(position),
     historicalEarnings: rows.filter(p => p.status === 'CLOSED').map(p => ({ id: p.id, chain: p.chain, pair: p.pair, positionNo: p.positionNo, observedEarnedUsd: p.earnedUsd, status: 'CLOSED', portfolio: p.portfolio })),
     totals: {
-      capitalUsd: g.valueUsd == null ? null : g.valueUsd + (g.uncollectedUsd || 0), positionsUsd: g.valueUsd, freeAssetsUsd: null,
-      completeness: 'PARTIAL', capitalStatus: 'PARTIAL',
-      capitalLabel: 'ММ пока учитывает только LP-позиции (тело и несобранное). Свободные активы на кошельках появятся следующим этапом, поэтому общий капитал выше показанного.',
+      capitalUsd: g.capitalUsd == null ? null : g.capitalUsd, positionsUsd: g.valueUsd, freeAssetsUsd: g.freeAssetsUsd == null ? null : g.freeAssetsUsd,
+      completeness: g.freeAssetsUsd == null || g.walletsStale ? 'PARTIAL' : 'FULL', capitalStatus: g.freeAssetsUsd == null || g.walletsStale ? 'PARTIAL' : 'CONFIRMED',
+      capitalLabel: g.freeAssetsUsd == null ? 'Свободные активы кошельков ещё не получены ММ — общий капитал выше показанного.'
+        : g.walletsStale ? 'Часть сетей кошельков не ответила в последнем прогоне: для них показан прошлый снимок.'
+        : 'Капитал = LP (тело и несобранное) + свободные активы кошельков в 8 сетях. Fragmetric (вывод в ожидании) в капитал не входит.',
       earnedSinceMonitoring: { usd: g.earnedUsd, coverage: n + '/' + n }, earned24h: { usd: g.income24hUsd, coverage: live.length + '/' + live.length },
       weightedIndicativeAprPct: a.all ? a.all.aprPct : null, weightedIndicativeAprCoverage: live.length + '/' + live.length, weightedIndicativeAprCapitalCoveragePct: cov(a.all),
       weightedApr24hPct: a.h24 ? a.h24.aprPct : null, weightedApr24hCoverage: live.length + '/' + live.length, weightedApr24hCapitalCoveragePct: cov(a.h24),
       unrecognized: { count: 0 }, suspicious: 0,
     },
-    byCoin: [], byChain: {}, freeAssets: [], pendingWithdrawals: [],
+    byCoin: g.freeByCoin || [], byChain: g.freeByChain || {}, pendingWithdrawals: [],
+    freeAssets: (g.freeAssets || []).map(a => ({ symbol: a.symbol, chain: a.chain, amount: a.amount, priceUsd: a.priceUsd, valueUsd: a.valueUsd, priceSource: 'defillama', stale: !!a.stale, cls: a.cls }))
+      .filter(a => a.cls === 'A'),
     capitalBreakdown: { byChain: g.byChain || [], byProtocol: g.byProtocol || [], byCoin: g.byCoin || [] },
     strategyAllocation: { actualUsd: g.byBucket || {}, targets: { quality: 40, medium: 20, high: 40 }, note: 'По утверждённым правилам стратегии' },
     dailyIncome: { days: (g.dailyIncome || []).map(d => Object.assign({ estimated: false }, d)) },
