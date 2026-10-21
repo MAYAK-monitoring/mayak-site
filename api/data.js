@@ -38,12 +38,16 @@ function position(p) {
 }
 
 const GAPS = [
-  { status: 'NONE', protocol: 'Fragmetric, выводы в ожидании', chain: 'Solana', note: 'В ММ появятся позже.' },
   { status: 'PARTIAL', protocol: 'Журнал операций, BTC', chain: '—', note: 'В ММ появятся позже.' },
 ];
 
 function bucket(v, key, rows) {
   const g = v.groups[key] || {}, n = rows.length, live = rows.filter(p => p.status !== 'CLOSED');
+  // заявки на вывод портфеля (наблюдения владельца, ориентир по текущей цене; не в капитале)
+  const pend = (v.pendingWithdrawals || []).filter(w => key === 'all' || w.portfolio === key).map(w => ({ portfolio: w.portfolio, protocol: w.protocol, chain: w.chain,
+    status: 'UNVERIFIED_' + (w.status || 'OBSERVED'), quality: 'UNVERIFIED', estimateSol: w.estimateAmount, valueUsd: null, observedAt: w.observedAt,
+    note: 'Ориентир ' + (w.estimateUsd == null ? '—' : '$' + Math.round(w.estimateUsd).toLocaleString('en-US')) + ' по текущей цене; в капитал не входит, пока не подтверждено в блокчейне' + (w.receiptTokenAmount ? ' · ' + w.receiptTokenAmount + ' ' + (w.receiptToken || '') : '') }));
+  const pendUsd = (v.pendingWithdrawals || []).filter(w => key === 'all' || w.portfolio === key).reduce((s, w) => w.estimateUsd == null ? s : s + w.estimateUsd, 0);
   const a = g.apr || {}, cov = w => (w && w.coverage != null ? w.coverage * 100 : null);
   return {
     snapshotTime: iso(g.observedAt),
@@ -58,9 +62,9 @@ function bucket(v, key, rows) {
       earnedSinceMonitoring: { usd: g.earnedUsd, coverage: n + '/' + n }, earned24h: { usd: g.income24hUsd, coverage: live.length + '/' + live.length },
       weightedIndicativeAprPct: a.all ? a.all.aprPct : null, weightedIndicativeAprCoverage: live.length + '/' + live.length, weightedIndicativeAprCapitalCoveragePct: cov(a.all),
       weightedApr24hPct: a.h24 ? a.h24.aprPct : null, weightedApr24hCoverage: live.length + '/' + live.length, weightedApr24hCapitalCoveragePct: cov(a.h24),
-      unrecognized: { count: 0 }, suspicious: 0,
+      unrecognized: { count: 0 }, suspicious: 0, pendingWithdrawalsCoverage: '0/' + pend.length, pendingWithdrawalsIndicativeUsd: pend.length ? pendUsd : null,
     },
-    byCoin: g.freeByCoin || [], byChain: g.freeByChain || {}, pendingWithdrawals: [],
+    byCoin: g.freeByCoin || [], byChain: g.freeByChain || {}, pendingWithdrawals: pend,
     freeAssets: (g.freeAssets || []).map(a => ({ symbol: a.symbol, chain: a.chain, amount: a.amount, priceUsd: a.priceUsd, valueUsd: a.valueUsd, priceSource: 'defillama', stale: !!a.stale, cls: a.cls }))
       .filter(a => a.cls === 'A'),
     capitalBreakdown: { byChain: g.byChain || [], byProtocol: g.byProtocol || [], byCoin: g.byCoin || [] },
