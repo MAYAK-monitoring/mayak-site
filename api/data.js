@@ -32,7 +32,7 @@ function position(p) {
     apr24hNote: 'APR = доход / средний капитал × год за последние 24 ч' + (a.h24 && a.h24.hours < 24 ? ' (позиция моложе суток — за её фактический период)' : '') + '. Без газа и IL.',
     indicativeAprPct: a.all ? a.all.aprPct : null, indicativeAprHours: a.all ? a.all.hours : null,
     indicativeAprNote: 'APR за весь период учёта: доход / средний капитал × год. Интервалы без доказанного капитала не входят ни в доход, ни в капитал.',
-    mmAll: a.all || null, mmH24: a.h24 || null,
+    mmAll: a.all || null, mmH24: a.h24 || null, mmHodl: p.vsHodl || null,
     inRangePct: null, outOfRangeHours: null, trackedDays: p.ageDays,
   };
 }
@@ -70,6 +70,7 @@ function bucket(v, key, rows) {
     capitalBreakdown: { byChain: g.byChain || [], byProtocol: g.byProtocol || [], byCoin: g.byCoin || [] },
     strategyAllocation: { actualUsd: g.byBucket || {}, targets: { quality: 40, medium: 20, high: 40 }, note: 'По утверждённым правилам стратегии' },
     // график «Средний доход в день» — готовый ряд ММ (история до перехода + дни ММ) и его среднее
+    mmHodl: g.vsHodl || null,
     dailyIncome: g.dailyDisplay ? { days: g.dailyDisplay.days, averageUsd: g.dailyDisplay.averageUsd } : { days: (g.dailyIncome || []).slice().reverse(), averageUsd: null },
     coverage: GAPS, sourceErrors: ((v.health || {}).errors || []).filter(t => !/поиск токенов Blockscout/.test(t)).map(text => ({ source: 'ММ', text })), warnings: [],
   };
