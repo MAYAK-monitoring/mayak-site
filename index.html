@@ -1465,7 +1465,7 @@ function forecastView(pf){
    (last!=null?'<line x1="'+X(last).toFixed(1)+'" x2="'+X(last).toFixed(1)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="2 3"/>':'')+
    '<path d="'+planPath+'" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="5 4"/>'+
    (factPath?'<path d="'+factPath+'" fill="none" stroke="#d7b88b" stroke-width="2.4" stroke-linejoin="round"/>':'')+dots+ticks+'</svg>'+
-   '<div class="mm-pace-legend"><span><i class="f"></i>факт</span><span><i class="p"></i>план '+P.targetPct+'% до конца месяца</span></div>';
+   '<div class="mm-pace-legend"><span><i class="f"></i>факт</span><span><i class="p"></i>план '+P.targetPct+'%</span></div>';
   const since=new Date(P.periodStart*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',timeZone:'Europe/Moscow'});
   return '<div class="analytics-box mm-pace"><div class="mm-pace-top"><div>'+
    '<div class="mm-pace-k">Идём к плану '+P.targetPct+'%?</div>'+
