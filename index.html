@@ -1465,7 +1465,7 @@ function forecastView(pf){
    '<path d="'+line('planUsd')+'" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="5 4"/>'+
    '<path d="'+line('factUsd')+'" fill="none" stroke="#d7b88b" stroke-width="2.2" stroke-linejoin="round"/>'+dots+ticks+
    axes+'</svg>'+
-   '<div class="mm-pace-legend"><span><i class="f"></i>факт</span><span><i class="p"></i>план 40%</span></div>':'';
+   '<div class="mm-pace-legend"><span><i class="f"></i>факт</span><span><i class="p"></i>план '+P.targetPct+'%</span></div>':'';
   const since=new Date(P.periodStart*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',timeZone:'Europe/Moscow'});
   return '<div class="analytics-box mm-pace"><div class="mm-pace-top"><div>'+
    '<div class="mm-pace-k">Идём к плану '+P.targetPct+'%?</div>'+
@@ -1507,7 +1507,7 @@ function forecastView(pf){
  const plist=F.positions.slice().sort((a,b)=>b.valueUsd-a.valueUsd).map(p=>'<tr><td>'+esc(p.pair)+'<span class="sub2">'+esc([p.chain,p.protocol].filter(Boolean).join(' · '))+'</span></td><td>'+fcM(p.valueUsd)+'</td><td>'+fcP(p.aprPct,0)+'</td><td>'+(p.speculative?'<span class="mm-fc-tag spec">спекулятивная</span>':'<span class="mm-fc-tag core">базовая</span>')+'</td></tr>').join('');
  return '<section class="sec mm-fc"><div class="analytics-intro"><div><h2>Прогноз '+(pf==='defi1'?'1 · DeFi 1':'2 · DeFi 2')+'</h2><p>Если текущие позиции останутся на месте, цены монет не изменятся, комиссии собираются каждое воскресенье с 1 ноября и реинвестируются, а свободные монеты вложены в первый сбор. Расчёт на '+esc(F.asOf.split('-').reverse().join('.'))+'.</p></div><span class="badge">план '+F.targetPct+'% · фиксируется 1-го числа</span></div>'+
   paceBlock+head+
-  '<div class="analytics-box"><h3>План по месяцам · '+F.targetPct+'% годовых</h3><p class="explainer">Капитал на начало → комиссии, которые текущие позиции заработают по своему фактическому APR → предполагаемые потери (оценка, их ещё не было: простои вне диапазона, газ на перекладку, перестройка только у спекулятивных монет) → итог → реинвестирование по воскресеньям → капитал на конец. Нажмите на месяц, чтобы увидеть, из чего он посчитан.</p>'+
+  '<div class="analytics-box"><h3>План по месяцам · '+F.targetPct+'% годовых в долларах</h3><p class="explainer">Капитал на начало → комиссии, которые текущие позиции заработают по своему фактическому APR → предполагаемые потери (оценка, их ещё не было: простои вне диапазона, газ на перекладку, перестройка только у спекулятивных монет) → итог → реинвестирование по воскресеньям → капитал на конец. Нажмите на месяц, чтобы увидеть, из чего он посчитан.</p>'+
   '<div class="tbl-scroll"><table class="mini mm-fc-tbl"><thead><tr class="mm-fc-grp"><th></th><th></th><th class="plan">План</th><th colspan="3" class="est">Предполагаемые потери · оценка</th><th></th><th></th><th></th><th></th></tr><tr><th>Месяц (на 1-е)</th><th>Капитал на начало</th><th class="plan">Комиссии</th><th class="est">− Простои</th><th class="est">− Газ</th><th class="est">− Перестройка</th><th>= Итог</th><th>Реинвестировано</th><th>Капитал на конец</th><th>Доходность, годовых</th></tr></thead><tbody>'+rows+total+'</tbody></table></div></div>'+
   '<div style="margin-top:16px">'+
   '<div class="analytics-box"><h3>Из чего строится прогноз</h3><p class="explainer">'+esc(inp.aprSource)+'. Каждый месяц параметры уточняются по фактам ММ.</p>'+
