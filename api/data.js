@@ -22,6 +22,7 @@ function position(p) {
     id: p.id, portfolio: p.portfolio, kind: 'LP', strategyBucket: p.bucket, pair: p.pair, protocol: p.protocol, chain: p.chain,
     staked: p.staked, status: p.status === 'UNKNOWN' ? null : p.status, version: VERSION(p.protocol), feePct: p.feePct, positionNo: p.positionNo,
     dataState: p.fresh === false ? 'LAST_GOOD' : 'FRESH', quality: 'OK',
+    mix: p.mix || null,                     // состав тела позиции, % по монетам (ММ)
     range: p.range ? { lower: p.range.lower, upper: p.range.upper, current: p.range.price, direction: p.range.direction } : null,
     currentValueUsd: p.valueUsd, unclaimedUsd: p.uncollectedUsd, unclaimedFeesUsd: p.uncollectedUsd,
     unclaimedNote: 'Не собрано — текущая стоимость всех несобранных комиссий и наград, включая заработанное до начала учёта.',
