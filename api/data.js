@@ -71,6 +71,8 @@ function bucket(v, key, rows) {
     strategyAllocation: { actualUsd: g.byBucket || {}, targets: { quality: 40, medium: 20, high: 40 }, note: 'По утверждённым правилам стратегии' },
     // график «Средний доход в день» — готовый ряд ММ (история до перехода + дни ММ) и его среднее
     mmHodl: g.vsHodl || null,
+    // «Против рынка» (вкладка «Прогноз»): готовые показатели ММ — к HODL своих монет, к корзине целевой структуры, к BTC
+    efficiency: g.performance || null,
     // шкала «Средний APR в день» — APR суток и APR за весь период с запуска ММ (T0), готовые числа ММ
     dailyApr: { days: (g.dailyIncome || []).slice().reverse().map(d => ({ date: d.date, aprPct: d.aprPct == null ? null : d.aprPct, closed: d.closed })),
       averagePct: a.all ? a.all.aprPct : null, sinceT0: true },
