@@ -1477,7 +1477,7 @@ function vsMarket(pf,P){
   const last=S[S.length-1], lab=keys.map(([k,c])=>({k,c,y:Y(last[k])+4,v:last[k]-100})).sort((u,v)=>u.y-v.y);
   for(let i=1;i<lab.length;i++)if(lab[i].y-lab[i-1].y<12)lab[i].y=lab[i-1].y+12;
   const ends=lab.map(o=>'<text x="'+(X(S.length-1)+6).toFixed(1)+'" y="'+o.y.toFixed(1)+'" class="mm-vs-end" fill="'+o.c+'">'+(o.v>=0?'+':'−')+fcP(Math.abs(o.v),1)+'</text>').join('');
-  const ticks=S.map((r,i)=>(i%5===0||i===S.length-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" class="mm-map-t">'+r.date.slice(8)+'.'+r.date.slice(5,7)+'</text>':'').join('');
+  const ticks=S.map((r,i)=>((i%5===0&&S.length-1-i>=3)||i===S.length-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" class="mm-map-t">'+r.date.slice(8)+'.'+r.date.slice(5,7)+'</text>':'').join('');
   chart='<svg viewBox="0 0 '+W+' '+H+'" class="mm-pace-chart" role="img" aria-label="Портфель против BTC, корзины и HODL, 100 = 21.10">'+
    '<line x1="'+L+'" x2="'+L+'" y1="'+T+'" y2="'+(H-B)+'" class="mm-ax"/><line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(100).toFixed(1)+'" y2="'+Y(100).toFixed(1)+'" class="mm-ax" stroke-dasharray="3 3"/>'+
    '<text x="'+(L-6)+'" y="'+(Y(100)+4).toFixed(1)+'" text-anchor="end" class="mm-map-t">100</text>'+lines+ends+ticks+'</svg>'+
@@ -1526,7 +1526,7 @@ function forecastView(pf){
   const X=i=>L+i/n*(W-L-R), Yp=v=>T+(1-(v-minY)/(maxY-minY))*(H-T-B);
   const line=k=>{let d='',pen=false;pts.forEach((q,i)=>{if(!fin(q[k])){pen=false;return;}d+=(pen?'L':'M')+X(i).toFixed(1)+' '+Yp(q[k]).toFixed(1);pen=true;});return d;};
   const dots=pts.map((q,i)=>'<circle cx="'+X(i).toFixed(1)+'" cy="'+Yp(q.factUsd).toFixed(1)+'" r="3.5" fill="'+(q.factUsd>=q.planUsd?'#62cda0':'#f18186')+'"><title>'+esc(q.date.split('-').reverse().join('.')+': комиссии '+fcM(q.factUsd)+' · план '+fcM(q.planUsd)+(fin(q.mgmtUsd)?' · управление к HODL '+fcM(q.mgmtUsd):''))+'</title></circle>').join('');
-  const ticks=pts.map((q,i)=>(i%5===0||i===pts.length-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" class="mm-map-t">'+q.date.slice(8)+'.'+q.date.slice(5,7)+'</text>':'').join('');
+  const ticks=pts.map((q,i)=>((i%5===0&&pts.length-1-i>=3)||i===pts.length-1)?'<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" class="mm-map-t">'+q.date.slice(8)+'.'+q.date.slice(5,7)+'</text>':'').join('');
   // оси: Y во всю высоту, X по нулю; на оси Y две отметки — факт (сколько уже сделано) и план (сколько должно быть)
   const last=pts[pts.length-1]||{factUsd:0,planUsd:0}, yF=Yp(last.factUsd), yP=Yp(last.planUsd), x0=Yp(0);
   let lF=yF, lP=yP; if(Math.abs(lP-lF)<14){const m=(lF+lP)/2, up=lF<=lP?-1:1; lF=m+up*7; lP=m-up*7;}       // подписи не налезают
@@ -1557,6 +1557,7 @@ function forecastView(pf){
    '<div class="mm-pace-lines">'+
     '<div><span>План</span><b>'+fcM(P.planPerDayUsd)+' в день</b><em>'+P.targetPct+'% от '+fcM(P.planCapitalUsd)+' / 365 · план комиссионных начислений, не чистая доходность</em></div>'+
     '<div><span>Комиссии</span><b>'+fcM(P.factPerDayUsd)+' в день</b><em>начислено '+fcM(P.feesToDateUsd)+' с начала периода, без вычетов</em></div>'+
+    (P.month&&P.days>1?'<div><span>'+['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][new Date((P.month.from+3*3600)*1000).getUTCMonth()]+'</span><b>план '+fcM(P.month.planUsd)+' · комиссии '+fcM(P.month.feesUsd)+' <span style="color:'+(P.month.aheadUsd>=0?'var(--green)':'var(--red)')+'">'+(P.month.aheadUsd>=0?'+':'−')+fcM(Math.abs(P.month.aheadUsd))+'</span></b><em>текущий месяц: план '+fcM(P.planPerDayUsd)+' в день от капитала на 1-е число</em></div>':'')+
     '<div><span>Темп</span><b style="color:'+col+'">'+fcP(P.paceAprPct,0)+' годовых</b><em>комиссии к капиталу, если так продолжится</em></div>'+
     '<div><span>С '+since+'</span><b>план '+fcM(P.planToDateUsd)+' · комиссии '+fcM(P.factToDateUsd)+'</b><em>'+P.days.toLocaleString('ru-RU',{maximumFractionDigits:1})+' дн.'+(P.shortHistory?' · мало данных, меньше недели':'')+'</em></div>'+
    '</div></div><div class="mm-pace-chartbox">'+chart+'</div></div>'+vsMarket(pf,P)+
@@ -1567,7 +1568,7 @@ function forecastView(pf){
  const first=sc.months[0];
  const head='<div class="mm-fc-kpis">'+
   kpi('Капитал на '+fcMonth(sc.months[sc.months.length-1].date)+' · план '+F.targetPct+'%',fcM(Y.capitalEndUsd),'сейчас '+fcM(Y.capitalStartUsd)+' · +'+fcM(Y.capitalEndUsd-Y.capitalStartUsd),'big')+
-  kpi('Первый сбор · 1 ноября',fcM(first.collectedUsd),'+ свободные монеты '+fcM(first.investedFreeUsd)+' в позиции')+
+  kpi('Сборы до '+fcMonth(first.date),fcM(first.collectedUsd),'+ свободные монеты '+fcM(first.investedFreeUsd)+' в позиции')+
   kpi('Сборов за год',String(Y.collects),'каждое воскресенье · всего '+fcM(Y.collectedUsd)+' реинвестировано')+'</div>';
  const cell=(x,cls,d)=>'<td'+(cls?' class="'+cls+'"':'')+'>'+fcM(x,d||0)+'</td>';
  const rows=sc.months.map((m,i)=>{
