@@ -1497,7 +1497,8 @@ function mgDay(pf,date){
  const x=S.find(q=>q.date===date)||S[S.length-1];
  if(!x||!fin(x.dUsd))return '';
  const sg=v=>(v>=0?'+':'−')+fcM(Math.abs(v)), c=v=>v>=0?'up':'down', d=q=>q?q.slice(8)+'.'+q.slice(5,7):'старт 21.10';
- const m=Math.max(Math.abs(x.dFeesUsd),Math.abs(x.dOtherUsd),1), w=v=>Math.max(2,Math.round(Math.abs(v)/m*60));
+ const sp=fin(x.dCompUsd)&&fin(x.dIlUsd)&&fin(x.dOpsUsd);
+ const m=Math.max(Math.abs(x.dFeesUsd),...(sp?[x.dCompUsd,x.dIlUsd,x.dOpsUsd]:[x.dOtherUsd]).map(Math.abs),1), w=v=>Math.max(2,Math.round(Math.abs(v)/m*60));
  const row=(k,v,cl,b)=>'<div class="r"><span class="k">'+k+'</span><span class="v '+(cl||'')+'">'+v+'</span><span class="b">'+(b||'')+'</span></div>';
  const bw=v=>'<i class="'+c(v)+'" style="width:'+w(v)+'px"></i>';
  return '<div class="mm-mg-grid">'+
@@ -1505,8 +1506,13 @@ function mgDay(pf,date){
   row('Управление к HODL',fcM(x.usd-x.dUsd)+' → '+fcM(x.usd),'')+
   row('Изменение',sg(x.dUsd),c(x.dUsd)+' big')+
   row('Комиссии',sg(x.dFeesUsd),c(x.dFeesUsd),bw(x.dFeesUsd))+
-  row('Остальное',sg(x.dOtherUsd),c(x.dOtherUsd),bw(x.dOtherUsd))+
-  '</div><small>Остальное — относительные цены и состав монет, перестройка LP, издержки; без разбивки. Период — между последними снимками дней.</small>';
+  (sp?row('Состав против HODL',sg(x.dCompUsd),c(x.dCompUsd),bw(x.dCompUsd))+
+   row('Перестройка LP (IL)',sg(x.dIlUsd),c(x.dIlUsd),bw(x.dIlUsd))+
+   row('Операции',sg(x.dOpsUsd),c(x.dOpsUsd),bw(x.dOpsUsd))
+   :row('Остальное',sg(x.dOtherUsd),c(x.dOtherUsd),bw(x.dOtherUsd)))+
+  '</div>'+(sp&&fin(x.compUsd)?'<small>С 21.10: комиссии '+sg(x.feesUsd)+' · состав '+sg(x.compUsd)+' · перестройка LP '+sg(x.ilUsd)+' · операции '+sg(x.opsUsd)+' = '+sg(x.usd)+'.</small>':'')+
+  (sp?'<small>Состав против HODL — сколько дала разница между монетами портфеля и исходным набором на 21.10 при движении цен (проданные монеты эталон продолжает «держать»). Перестройка LP — пул сам продаёт дорожающую монету, без ваших действий. Операции — сборы, открытия и закрытия, обмены, газ, мосты; без действий ≈ 0. Период — между последними снимками дней.</small>'
+   :'<small>Остальное — относительные цены и состав монет, перестройка LP, издержки; без разбивки. Период — между последними снимками дней.</small>');
 }
 document.addEventListener('mouseover',e=>{const el=e.target.closest&&e.target.closest('[data-mgday]');if(!el)return;const [pf,date]=el.getAttribute('data-mgday').split('|');const box=document.getElementById('mgday-'+pf);if(box)box.innerHTML=mgDay(pf,date);});
 document.addEventListener('click',e=>{const el=e.target.closest&&e.target.closest('[data-mgday]');if(!el)return;const [pf,date]=el.getAttribute('data-mgday').split('|');const box=document.getElementById('mgday-'+pf);if(box)box.innerHTML=mgDay(pf,date);});
